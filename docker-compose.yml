@@ -1,0 +1,115 @@
+version: "3.9"
+
+services:
+   server:
+      restart: always
+      build:
+         context: ./server
+         dockerfile: Dockerfile.dev
+      container_name: genxiot-server
+      tty: true
+      # volumes allow sharing of data in run-time between host and container
+      volumes:
+         # don't overwrite this folder in container with the local one
+         - /app/node_modules
+         # map current local directory to the /app inside the container
+         #This is a must for development in order to update our container whenever a change to the source code is made. Without this, you would have to rebuild the image each time you make a change to source code.
+         - ./server:/app
+      # ports:
+      #    - 8080:80
+      depends_on:
+         - mongodb
+      external_links:
+      - mongodb
+      
+     
+
+   mongodb:
+      container_name: mongo
+      image: mongo
+      # environment:
+      # - AUTH=yes
+      # - MONGO_INITDB_ROOT_USERNAME=admin
+      # - MONGO_INITDB_ROOT_PASSWORD=password
+      volumes:
+      - ~/mongo/data:/data/db
+      ports:
+      - "27017:27017"
+     
+ 
+# volumes:
+#    mongodb-data:
+#       driver: local
+
+      # mongo-express should only be used privately for development purposes.
+      # It helps us interact with a mongoDB database using our browser
+   # mongo-express:
+   #    image: mongo-express
+   #    depends_on:
+   #       - mongodb
+   #    ports:
+   #       - 8081:8081
+   #    environment:
+   #       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME}
+   #       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+   #       ME_CONFIG_MONGODB_SERVER: mongodb
+   #       ME_CONFIG_BASICAUTH_USERNAME: admin
+   #       ME_CONFIG_BASICAUTH_PASSWORD: admin123456
+   #    volumes:
+   #       - mongodb-data:/data/db
+   #    networks:
+   #       - genxiot-mern-app
+
+
+   mosquitto:
+      container_name: mqtt
+      image: eclipse-mosquitto
+      restart: always
+      volumes:
+      - ./config:/mosquitto/config
+      - ./config:/mosquitto/data
+      - ./config:/mosquitto/log
+      ports:
+         - 1883:1883
+         - 9001:9001
+
+   frontend:
+    
+      restart: always
+      build:
+         context: ./client
+         dockerfile: Dockerfile.dev
+      container_name: genxiot-frontend
+      volumes:
+      - './client:/app'
+      - '/app/node_modules'
+      ports:
+      - 3000:3000
+      stdin_open: true
+      environment:
+      - CHOKIDAR_USEPOLLING=true
+      command: npm start
+      # networks:
+      #    - genxiot-mern-app
+
+   nginx:
+      restart: always
+      depends_on:
+      - server
+      - frontend
+      build:
+         context: ./nginx
+         dockerfile: Dockerfile.dev
+      ports:
+      - 8080:80
+      # networks:
+      #    - genxiot-mern-app
+
+   # networks:
+   #    genxiot-mern-app:
+   #       driver: bridge
+
+   # volumes:
+   #    mongodb-data:
+   #       driver: local
+  
